@@ -38,7 +38,7 @@ import matplotlib.pyplot as plt
 
 
 print("📂 Please upload EXACTLY TWO signature images (jpg/png).")
-uploaded = files.upload()
+
 if len(uploaded) != 2:
     raise SystemExit("❌ You must upload exactly TWO images!")
 
