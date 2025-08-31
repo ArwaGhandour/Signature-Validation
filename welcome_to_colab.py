@@ -30,7 +30,6 @@ The Gemini API gives you access to Gemini models created by Google DeepMind. Gem
 To learn more, take a look at the <a href="https://github.com/google-gemini/cookbook">Gemini cookbook</a> or visit the <a href="https://ai.google.dev/docs/">Gemini API documentation</a>.
 """
 
-pip install --quiet opencv-python-headless scikit-image matplotlib
 
 import cv2
 import numpy as np
