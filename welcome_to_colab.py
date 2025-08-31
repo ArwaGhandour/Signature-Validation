@@ -34,7 +34,6 @@ To learn more, take a look at the <a href="https://github.com/google-gemini/cook
 import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
-from google.colab import files
 import matplotlib.pyplot as plt
 
 
