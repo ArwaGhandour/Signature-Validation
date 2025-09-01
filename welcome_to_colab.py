@@ -39,8 +39,7 @@ import matplotlib.pyplot as plt
 
 print("📂 Please upload EXACTLY TWO signature images (jpg/png).")
 
-if len(uploaded) != 2:
-    raise SystemExit("❌ You must upload exactly TWO images!")
+
 
 filenames = list(uploaded.keys())
 img1_path, img2_path = filenames[0], filenames[1]
