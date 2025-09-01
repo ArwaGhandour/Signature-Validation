@@ -31,27 +31,21 @@ To learn more, take a look at the <a href="https://github.com/google-gemini/cook
 """
 
 
-import cv2
-import numpy as np
-from skimage.metrics import structural_similarity as ssim
-import matplotlib.pyplot as plt
+import streamlit as st
 
+uploaded_files = st.file_uploader("Upload EXACTLY TWO signature images (jpg/png)", type=["jpg","png"], accept_multiple_files=True)
 
-print("📂 Please upload EXACTLY TWO signature images (jpg/png).")
-
-
-
-filenames = list(uploaded.keys())
-img1_path, img2_path = filenames[0], filenames[1]
-
-
-def load_and_preprocess(path, size=(300,300)):
-    img = cv2.imdecode(np.frombuffer(uploaded[path], np.uint8), cv2.IMREAD_GRAYSCALE)
-    img = cv2.resize(img, size)
-    return img
-
-img1 = load_and_preprocess(img1_path)
-img2 = load_and_preprocess(img2_path)
+if uploaded_files and len(uploaded_files) == 2:
+    img1_file, img2_file = uploaded_files[0], uploaded_files[1]
+    
+    def load_and_preprocess(file, size=(300,300)):
+        file_bytes = np.frombuffer(file.read(), np.uint8)
+        img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
+        img = cv2.resize(img, size)
+        return img
+    
+    img1 = load_and_preprocess(img1_file)
+    img2 = load_and_preprocess(img2_file)
 
 
 orb = cv2.ORB_create(5000)
