@@ -2,45 +2,87 @@ import streamlit as st
 import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
+from PIL import Image
+import tempfile
+import os
 
-st.set_page_config(page_title="Signature Validation", layout="centered")
-st.title("Signature Comparison App 🖊️")
+# -----------------------
+# Helper: ORB matching
+# -----------------------
+def orb_match(img1, img2):
+    orb = cv2.ORB_create()
 
-st.markdown(
-    "ارفع **صورتين توقيع** (JPG/PNG). هنحسب تشابه ORB + SSIM ونطلع قرار نهائي."
-)
-
-# ============= Helpers =============
-def load_and_preprocess(uploaded_file, size=(300, 300)):
-    """
-    يقرأ ملف Streamlit UploadedFile بشكل آمن (getvalue) عشان re-run ما يبوّظش البوفر،
-    ويحوّله لصورة رمادية ومقاس ثابت.
-    """
-    data = uploaded_file.getvalue()
-    arr = np.frombuffer(data, dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
-    if img is None:
-        raise ValueError("تعذّر قراءة الصورة. تأكدي من أن الملف صورة JPG/PNG سليمة.")
-    img = cv2.resize(img, size)
-    return img
-
-def compute_orb_similarity(img1, img2, max_features=5000, dist_thresh=60):
-    orb = cv2.ORB_create(max_features)
+    # keypoints and descriptors
     kp1, des1 = orb.detectAndCompute(img1, None)
     kp2, des2 = orb.detectAndCompute(img2, None)
 
-    # لو مفيش ديسكربتورز، نخلي النسبة 0 ونرجّع لستريملِت رسالة هادية
-    if des1 is None or des2 is None or len(kp1) == 0 or len(kp2) == 0:
-        return 0.0, [], kp1 or [], kp2 or []
+    if des1 is None or des2 is None:
+        return 0, None, kp1, kp2
 
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     matches = bf.match(des1, des2)
-    matches = sorted(matches, key=lambda m: m.distance)
 
-    good = [m for m in matches if m.distance < dist_thresh]
-    max_possible = min(len(kp1), len(kp2))
-    orb_percent = (len(good) / max_possible) * 100 if max_possible > 0 else 0.0
+    if not matches:
+        return 0, None, kp1, kp2
 
-    return orb_percent, good, kp1, kp2
+    matches = sorted(matches, key=lambda x: x.distance)
+    score = sum([1 - (m.distance / 100) for m in matches]) / len(matches)
+    return score, matches, kp1, kp2
 
-def make_match_viz(img1, img2, kp1, kp2,
+# -----------------------
+# Helper: SSIM
+# -----------------------
+def ssim_score(img1, img2):
+    img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+    s, _ = ssim(img1_gray, img2_gray, full=True)
+    return s
+
+# -----------------------
+# Visualization of matches
+# -----------------------
+def make_match_viz(img1, img2, kp1, kp2, matches, max_matches=20):
+    return cv2.drawMatches(
+        img1, kp1, img2, kp2,
+        matches[:max_matches], None,
+        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+    )
+
+# -----------------------
+# Streamlit app
+# -----------------------
+st.title("Signature Verification ✍️")
+st.write("Upload two signature images to compare if they match.")
+
+# Upload images
+img1_file = st.file_uploader("Upload first signature", type=["jpg", "png", "jpeg"])
+img2_file = st.file_uploader("Upload second signature", type=["jpg", "png", "jpeg"])
+
+if img1_file and img2_file:
+    # OpenCV images
+    img1 = np.array(Image.open(img1_file).convert("RGB"))
+    img2 = np.array(Image.open(img2_file).convert("RGB"))
+
+    img1_cv = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
+    img2_cv = cv2.cvtColor(img2, cv2.COLOR_RGB2BGR)
+
+    # ORB
+    orb_score, matches, kp1, kp2 = orb_match(img1_cv, img2_cv)
+
+    # SSIM
+    ssim_val = ssim_score(img1_cv, img2_cv)
+
+    # Results
+    st.subheader("Results")
+    st.write(f"🔍 **ORB similarity score:** {orb_score:.2f}")
+    st.write(f"🖼️ **SSIM score:** {ssim_val:.2f}")
+
+    if orb_score > 0.5 and ssim_val > 0.5:
+        st.success("✅ Signatures match")
+    else:
+        st.error("❌ Signatures do not match")
+
+    # Show visualizations
+    if matches:
+        match_img = make_match_viz(img1_cv, img2_cv, kp1, kp2, matches)
+        st.image(cv2.cvtColor(match_img, cv2.COLOR_BGR2RGB), caption="Feature Matching")
