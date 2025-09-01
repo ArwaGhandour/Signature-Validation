@@ -3,8 +3,12 @@ import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from PIL import Image
-import tempfile
-import os
+
+# -----------------------
+# Helper: resize & preprocess
+# -----------------------
+def preprocess(img, size=(300, 300)):
+    return cv2.resize(img, size)
 
 # -----------------------
 # Helper: ORB matching
@@ -12,7 +16,6 @@ import os
 def orb_match(img1, img2):
     orb = cv2.ORB_create()
 
-    # keypoints and descriptors
     kp1, des1 = orb.detectAndCompute(img1, None)
     kp2, des2 = orb.detectAndCompute(img2, None)
 
@@ -54,17 +57,19 @@ def make_match_viz(img1, img2, kp1, kp2, matches, max_matches=20):
 st.title("Signature Verification ✍️")
 st.write("Upload two signature images to compare if they match.")
 
-# Upload images
 img1_file = st.file_uploader("Upload first signature", type=["jpg", "png", "jpeg"])
 img2_file = st.file_uploader("Upload second signature", type=["jpg", "png", "jpeg"])
 
 if img1_file and img2_file:
-    # OpenCV images
     img1 = np.array(Image.open(img1_file).convert("RGB"))
     img2 = np.array(Image.open(img2_file).convert("RGB"))
 
     img1_cv = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
     img2_cv = cv2.cvtColor(img2, cv2.COLOR_RGB2BGR)
+
+    # ✅ Resize to same size
+    img1_cv = preprocess(img1_cv)
+    img2_cv = preprocess(img2_cv)
 
     # ORB
     orb_score, matches, kp1, kp2 = orb_match(img1_cv, img2_cv)
