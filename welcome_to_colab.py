@@ -35,10 +35,11 @@ import streamlit as st
 import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
+import matplotlib.pyplot as plt
 
-st.title("Signature Comparison App")
+st.title("Signature Comparison App 🖊️")
 
-# رفع الملفات
+# رفع الصور
 uploaded_files = st.file_uploader(
     "Upload EXACTLY TWO signature images (jpg/png)", 
     type=["jpg","png"], 
@@ -47,16 +48,16 @@ uploaded_files = st.file_uploader(
 
 if uploaded_files and len(uploaded_files) == 2:
     img1_file, img2_file = uploaded_files[0], uploaded_files[1]
-    
+
     def load_and_preprocess(file, size=(300,300)):
         file_bytes = np.frombuffer(file.read(), np.uint8)
         img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
         img = cv2.resize(img, size)
         return img
-    
+
     img1 = load_and_preprocess(img1_file)
     img2 = load_and_preprocess(img2_file)
-    
+
     # ORB feature matching
     orb = cv2.ORB_create(5000)
     kp1, des1 = orb.detectAndCompute(img1, None)
@@ -87,18 +88,13 @@ if uploaded_files and len(uploaded_files) == 2:
 
     # عرض أفضل الـ matches
     img_matches = cv2.drawMatches(img1, kp1, img2, kp2, good_matches[:20], None, flags=2)
+
+    # طريقة آمنة لعرض الصورة في Streamlit
     st.image(img_matches, caption="Top ORB Matches", use_column_width=True)
 
 else:
     st.warning("Please upload exactly TWO images to compare.")
 
-
-img_matches = cv2.drawMatches(img1, kp1, img2, kp2, good_matches[:20], None, flags=2)
-plt.figure(figsize=(12,6))
-plt.imshow(img_matches, cmap='gray')
-plt.axis("off")
-plt.title("Top ORB Matches")
-plt.show()
 
 """Colab now has AI features powered by <a href="https://gemini.google.com">Gemini</a>. The video below provides information on how to use these features, whether you're new to Python or a seasoned veteran.
 
