@@ -32,8 +32,18 @@ To learn more, take a look at the <a href="https://github.com/google-gemini/cook
 
 
 import streamlit as st
+import cv2
+import numpy as np
+from skimage.metrics import structural_similarity as ssim
 
-uploaded_files = st.file_uploader("Upload EXACTLY TWO signature images (jpg/png)", type=["jpg","png"], accept_multiple_files=True)
+st.title("Signature Comparison App")
+
+# رفع الملفات
+uploaded_files = st.file_uploader(
+    "Upload EXACTLY TWO signature images (jpg/png)", 
+    type=["jpg","png"], 
+    accept_multiple_files=True
+)
 
 if uploaded_files and len(uploaded_files) == 2:
     img1_file, img2_file = uploaded_files[0], uploaded_files[1]
@@ -46,39 +56,41 @@ if uploaded_files and len(uploaded_files) == 2:
     
     img1 = load_and_preprocess(img1_file)
     img2 = load_and_preprocess(img2_file)
+    
+    # ORB feature matching
+    orb = cv2.ORB_create(5000)
+    kp1, des1 = orb.detectAndCompute(img1, None)
+    kp2, des2 = orb.detectAndCompute(img2, None)
 
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(des1, des2)
+    matches = sorted(matches, key=lambda x: x.distance)
 
-orb = cv2.ORB_create(5000)
-kp1, des1 = orb.detectAndCompute(img1, None)
-kp2, des2 = orb.detectAndCompute(img2, None)
+    good_matches = [m for m in matches if m.distance < 60]
+    similarity_score_orb = len(good_matches)
+    max_possible_matches = min(len(kp1), len(kp2))
+    orb_percent = (similarity_score_orb / max_possible_matches) * 100 if max_possible_matches > 0 else 0
 
-bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-matches = bf.match(des1, des2)
-matches = sorted(matches, key=lambda x: x.distance)
+    # SSIM
+    similarity_score_ssim = ssim(img1, img2) * 100
 
+    # Combined score
+    combined_score = 0.6 * orb_percent + 0.4 * similarity_score_ssim
+    FINAL_THRESHOLD = 50
+    final_decision = "SIMILAR ✅" if combined_score >= FINAL_THRESHOLD else "NOT SIMILAR ❌"
 
-good_matches = [m for m in matches if m.distance < 60]
-similarity_score_orb = len(good_matches)
+    # عرض النتائج
+    st.write(f"ORB Score: {orb_percent:.2f}%")
+    st.write(f"SSIM Score: {similarity_score_ssim:.2f}%")
+    st.write(f"✅ Combined Score: {combined_score:.2f}%")
+    st.write(f"🔹 Final Decision: {final_decision}")
 
+    # عرض أفضل الـ matches
+    img_matches = cv2.drawMatches(img1, kp1, img2, kp2, good_matches[:20], None, flags=2)
+    st.image(img_matches, caption="Top ORB Matches", use_column_width=True)
 
-max_possible_matches = min(len(kp1), len(kp2))
-orb_percent = (similarity_score_orb / max_possible_matches) * 100 if max_possible_matches>0 else 0
-
-
-similarity_score_ssim = ssim(img1, img2) * 100
-
-
-
-combined_score = 0.6 * orb_percent + 0.4 * similarity_score_ssim
-
-
-FINAL_THRESHOLD = 50
-final_decision = "SIMILAR ✅" if combined_score >= FINAL_THRESHOLD else "NOT SIMILAR ❌"
-
-print(f"ORB Score: {orb_percent:.2f}%")
-print(f"SSIM Score: {similarity_score_ssim:.2f}%")
-print(f"✅ Combined Score: {combined_score:.2f}%")
-print(f"🔹 Final Decision: {final_decision}")
+else:
+    st.warning("Please upload exactly TWO images to compare.")
 
 
 img_matches = cv2.drawMatches(img1, kp1, img2, kp2, good_matches[:20], None, flags=2)
